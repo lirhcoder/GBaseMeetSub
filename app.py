@@ -44,12 +44,29 @@ def allowed_file(filename):
 @app.route('/')
 def index():
     """主页"""
-    return render_template('index.html')
+    # 先测试是否能访问路由
+    if request.args.get('test'):
+        return "路由正常工作！"
+    
+    # 检查模板文件
+    template_path = os.path.join(app.template_folder, 'index.html')
+    if not os.path.exists(template_path):
+        return f"错误：模板文件不存在！<br>查找路径: {template_path}<br>模板目录: {app.template_folder}"
+    
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        return f"模板渲染错误：{str(e)}"
 
 @app.route('/favicon.ico')
 def favicon():
     """返回空的favicon以避免404"""
     return '', 204
+
+@app.route('/hello')
+def hello():
+    """简单测试路由"""
+    return "Hello from GBaseMeetSub!"
 
 
 @app.route('/upload', methods=['POST'])
