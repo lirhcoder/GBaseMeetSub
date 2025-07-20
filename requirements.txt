@@ -1,0 +1,28 @@
+# 核心依赖
+openai-whisper>=20231117
+torch>=2.0.0
+numpy>=1.24.0
+ffmpeg-python>=0.2.0
+
+# 日语处理
+mecab-python3>=1.0.6
+fugashi>=1.2.1
+unidic-lite>=1.0.8
+
+# 术语管理
+pygtrie>=2.5.0
+
+# 精度评估
+jiwer>=3.0.0
+
+# 通用工具
+pyyaml>=6.0
+tqdm>=4.65.0
+pandas>=2.0.0
+
+# 测试
+pytest>=7.3.0
+pytest-cov>=4.0.0
+
+# 可选：GPU加速
+# torch-cuda>=2.0.0  # 如果使用NVIDIA GPU
