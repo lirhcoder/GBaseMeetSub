@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GBaseMeetSub - 日语会议语音识别</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GBaseMeetSub</h1>
+            <p>日语会议语音识别与字幕生成系统</p>
+        </header>
+
+        <!-- 上传区域 -->
+        <section class="upload-section">
+            <h2>第一步：上传音频文件</h2>
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="audioFile" accept=".mp4,.mp3,.wav,.m4a,.webm" hidden>
+                <div class="upload-prompt">
+                    <svg class="upload-icon" viewBox="0 0 24 24" width="48" height="48">
+                        <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
+                    </svg>
+                    <p>点击或拖拽音频文件到此处</p>
+                    <p class="file-types">支持 MP4, MP3, WAV, M4A, WebM</p>
+                </div>
+            </div>
+            
+            <div id="fileInfo" class="file-info" style="display: none;">
+                <p>已选择文件: <span id="fileName"></span></p>
+            </div>
+        </section>
+
+        <!-- 设置选项 -->
+        <section class="settings-section">
+            <h2>第二步：选择处理选项</h2>
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label for="modelSize">模型大小:</label>
+                    <select id="modelSize">
+                        <option value="medium" selected>Medium (平衡速度与精度)</option>
+                        <option value="large-v3">Large-v3 (最高精度)</option>
+                        <option value="small">Small (快速)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="subtitleFormat">字幕格式:</label>
+                    <select id="subtitleFormat">
+                        <option value="srt" selected>SRT</option>
+                        <option value="vtt">WebVTT</option>
+                        <option value="txt">纯文本</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- 处理按钮 -->
+        <section class="action-section">
+            <button id="processBtn" class="process-btn" disabled>
+                开始处理
+            </button>
+        </section>
+
+        <!-- 进度显示 -->
+        <section id="progressSection" class="progress-section" style="display: none;">
+            <h2>处理进度</h2>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+            </div>
+            <p id="statusMessage" class="status-message"></p>
+        </section>
+
+        <!-- 结果显示 -->
+        <section id="resultSection" class="result-section" style="display: none;">
+            <h2>处理结果</h2>
+            <div class="result-grid">
+                <div class="result-item">
+                    <h3>基本信息</h3>
+                    <p>识别片段数: <span id="segmentsCount"></span></p>
+                    <p>术语修正数: <span id="correctionsCount"></span></p>
+                </div>
+                
+                <div class="result-item">
+                    <h3>下载字幕</h3>
+                    <button id="downloadBtn" class="download-btn">
+                        下载字幕文件
+                    </button>
+                </div>
+            </div>
+
+            <!-- 修正示例 -->
+            <div id="correctionsExample" class="corrections-example" style="display: none;">
+                <h3>术语修正示例</h3>
+                <table id="correctionsTable">
+                    <thead>
+                        <tr>
+                            <th>原文</th>
+                            <th>修正后</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- 新建任务按钮 -->
+            <button id="newTaskBtn" class="new-task-btn">
+                处理新文件
+            </button>
+        </section>
+
+        <!-- 术语管理 -->
+        <section class="terms-section">
+            <h2>术语库管理</h2>
+            <div class="terms-actions">
+                <button id="viewTermsBtn" class="secondary-btn">查看术语库</button>
+                <button id="addTermBtn" class="secondary-btn">添加术语</button>
+            </div>
+            
+            <!-- 术语列表 -->
+            <div id="termsList" class="terms-list" style="display: none;">
+                <table id="termsTable">
+                    <thead>
+                        <tr>
+                            <th>原词</th>
+                            <th>正确词</th>
+                            <th>频率</th>
+                            <th>置信度</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- 添加术语表单 -->
+            <div id="addTermForm" class="add-term-form" style="display: none;">
+                <input type="text" id="originalTerm" placeholder="原词">
+                <input type="text" id="correctedTerm" placeholder="正确词">
+                <input type="text" id="termContext" placeholder="上下文（可选）">
+                <button id="submitTermBtn" class="primary-btn">添加</button>
+                <button id="cancelTermBtn" class="secondary-btn">取消</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

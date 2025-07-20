@@ -109,6 +109,29 @@ pipeline.learn_from_feedback(
 
 ## 运行示例
 
+### Web UI（推荐）
+
+快速启动Web界面：
+```bash
+# Linux/MacOS
+chmod +x run_web.sh
+./run_web.sh
+
+# Windows
+run_web.bat
+```
+
+然后在浏览器中访问 http://localhost:5000
+
+Web UI功能：
+- 拖拽上传音频文件
+- 实时显示处理进度
+- 下载生成的字幕文件
+- 管理和添加术语库
+- 查看修正示例
+
+### 命令行使用
+
 确保已激活虚拟环境：
 ```bash
 # Linux/MacOS
