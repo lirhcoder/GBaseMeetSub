@@ -2,7 +2,7 @@
 import os
 import sys
 import json
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import threading
@@ -20,7 +20,8 @@ from src.main_pipeline import SpeechProcessingPipeline
 # 创建Flask应用，指定模板和静态文件的绝对路径
 app = Flask(__name__,
             template_folder=os.path.join(APP_ROOT, 'templates'),
-            static_folder=os.path.join(APP_ROOT, 'static'))
+            static_folder=os.path.join(APP_ROOT, 'static'),
+            static_url_path='/static')
 
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
 app.config['UPLOAD_FOLDER'] = os.path.join(APP_ROOT, 'uploads')
@@ -52,20 +53,38 @@ def debug():
     static_files = glob.glob(os.path.join(app.static_folder, '**/*'), recursive=True)
     static_files = [os.path.relpath(f, app.static_folder).replace('\\', '/') for f in static_files if os.path.isfile(f)]
     
+    # 检查文件是否真的存在
+    css_exists = os.path.exists(os.path.join(app.static_folder, 'css/style.css'))
+    js_exists = os.path.exists(os.path.join(app.static_folder, 'js/main.js'))
+    
     return f"""
     <h1>调试信息</h1>
+    <p>应用根目录: {APP_ROOT}</p>
     <p>静态文件目录: {app.static_folder}</p>
     <p>静态文件URL前缀: {app.static_url_path}</p>
+    <p>CSS文件存在: {css_exists}</p>
+    <p>JS文件存在: {js_exists}</p>
     <h2>找到的静态文件:</h2>
     <ul>
     {''.join(f'<li>{f}</li>' for f in static_files)}
     </ul>
     <h2>测试链接:</h2>
     <ul>
-    <li><a href="{url_for('static', filename='css/style.css')}">CSS文件</a></li>
-    <li><a href="{url_for('static', filename='js/main.js')}">JS文件</a></li>
+    <li><a href="{url_for('static', filename='css/style.css')}">CSS文件: {url_for('static', filename='css/style.css')}</a></li>
+    <li><a href="{url_for('static', filename='js/main.js')}">JS文件: {url_for('static', filename='js/main.js')}</a></li>
+    </ul>
+    <h2>直接测试:</h2>
+    <ul>
+    <li><a href="/static/css/style.css">直接访问CSS</a></li>
+    <li><a href="/static/js/main.js">直接访问JS</a></li>
     </ul>
     """
+
+# 添加手动静态文件路由（如果自动路由失败）
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """手动服务静态文件"""
+    return send_from_directory(app.static_folder, filename)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
