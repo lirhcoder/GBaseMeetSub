@@ -35,7 +35,7 @@ if not exist data\corrections_log.json (
 REM 启动Flask应用
 echo.
 echo 启动Web服务器...
-echo 访问 http://localhost:5000 使用系统
+echo 访问 http://localhost:8888 使用系统
 echo 按 Ctrl+C 停止服务器
 echo.
 

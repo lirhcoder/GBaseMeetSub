@@ -15,9 +15,9 @@ if __name__ == '__main__':
     print("\n" + "="*50)
     print("运行最简单的Flask应用")
     print("="*50)
-    print("访问: http://localhost:6000/")
-    print("访问: http://localhost:6000/test")
+    print("访问: http://localhost:8080/")
+    print("访问: http://localhost:8080/test")
     print("="*50 + "\n")
     
-    # 使用不同的端口避免冲突
-    app.run(debug=True, port=6000, host='127.0.0.1')
+    # 使用8080端口（安全端口）
+    app.run(debug=True, port=8080, host='127.0.0.1')

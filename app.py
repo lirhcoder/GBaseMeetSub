@@ -252,7 +252,9 @@ if __name__ == '__main__':
     print(f"数据目录: {app.config['DATA_FOLDER']}")
     print(f"上传目录: {app.config['UPLOAD_FOLDER']}")
     print(f"输出目录: {app.config['OUTPUT_FOLDER']}")
+    print(f"{'='*50}")
+    print(f"访问: http://localhost:8888")
     print(f"{'='*50}\n")
     
-    # 开发模式运行
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # 使用8888端口避免冲突
+    app.run(debug=True, host='127.0.0.1', port=8888)
