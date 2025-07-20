@@ -16,6 +16,7 @@ sys.path.insert(0, APP_ROOT)
 
 # 现在导入项目模块
 from src.main_pipeline import SpeechProcessingPipeline
+from src.enhanced_pipeline import EnhancedPipeline
 
 # 创建Flask应用，指定模板和静态文件的绝对路径
 app = Flask(__name__,
@@ -124,43 +125,50 @@ def upload_file():
 def process_audio_task(task_id, filepath, model_size, subtitle_format):
     """后台处理音频任务"""
     try:
-        # 更新进度
-        processing_tasks[task_id]['progress'] = 10
-        processing_tasks[task_id]['status_message'] = '初始化语音识别模型...'
+        # 进度回调函数
+        def update_progress(progress_info):
+            processing_tasks[task_id].update({
+                'progress': progress_info['current_progress'],
+                'status_message': progress_info['message'],
+                'current_chunk': progress_info.get('current_chunk', 0),
+                'total_chunks': progress_info.get('total_chunks', 0),
+                'partial_segments': progress_info.get('partial_results', [])[-10:]  # 最后10个片段供预览
+            })
         
-        # 创建处理管道
-        pipeline = SpeechProcessingPipeline({
-            'model_size': model_size
+        # 创建增强处理管道
+        pipeline = EnhancedPipeline({
+            'model_size': model_size,
+            'chunk_duration': 60  # 60秒片段
         })
-        
-        processing_tasks[task_id]['progress'] = 20
-        processing_tasks[task_id]['status_message'] = '开始语音识别...'
         
         # 处理音频
-        result = pipeline.process_audio(
+        result = pipeline.process_audio_chunked(
             audio_path=filepath,
             output_dir=app.config['OUTPUT_FOLDER'],
-            subtitle_format=subtitle_format,
-            validate=False
+            progress_callback=update_progress,
+            subtitle_format=subtitle_format
         )
         
-        processing_tasks[task_id]['progress'] = 90
-        processing_tasks[task_id]['status_message'] = '生成字幕文件...'
-        
-        # 保存结果
-        processing_tasks[task_id].update({
-            'status': 'completed',
-            'progress': 100,
-            'status_message': '处理完成！',
-            'result': {
-                'subtitle_path': result['subtitle_path'],
-                'segments_count': len(result['segments']),
-                'corrections_count': result['corrections_count'],
-                'corrections': result['corrections'][:5],  # 前5个修正示例
-                'high_freq_terms': list(result['high_freq_terms'].items())[:10]
-            },
-            'end_time': datetime.now().isoformat()
-        })
+        if result['success']:
+            # 保存结果
+            processing_tasks[task_id].update({
+                'status': 'completed',
+                'progress': 100,
+                'status_message': '处理完成！',
+                'result': {
+                    'subtitle_path': result['subtitle_path'],
+                    'segments_count': len(result['segments']),
+                    'corrections_count': result['corrections_count'],
+                    'corrections': result['corrections'][:5],
+                    'high_freq_terms': result['high_freq_terms'],
+                    'processing_time': result['processing_time'],
+                    'chunks_processed': result['chunks_processed']
+                },
+                'segments': result['segments'],  # 保存所有片段供预览
+                'end_time': datetime.now().isoformat()
+            })
+        else:
+            raise Exception(result.get('error', '处理失败'))
         
     except Exception as e:
         processing_tasks[task_id].update({
@@ -229,6 +237,45 @@ def add_correction():
             'corrected': corrected
         }
     })
+
+@app.route('/preview/<task_id>')
+def preview_audio(task_id):
+    """获取音频文件用于预览"""
+    if task_id not in processing_tasks:
+        return jsonify({'error': '任务不存在'}), 404
+    
+    task = processing_tasks[task_id]
+    audio_path = task.get('filepath')
+    
+    if audio_path and os.path.exists(audio_path):
+        # 返回音频文件，支持范围请求（用于拖动进度条）
+        return send_file(audio_path, mimetype='audio/mpeg', as_attachment=False)
+    
+    return jsonify({'error': '音频文件不存在'}), 404
+
+@app.route('/preview_subtitles/<task_id>')
+def preview_subtitles(task_id):
+    """获取实时字幕预览"""
+    if task_id not in processing_tasks:
+        return jsonify({'error': '任务不存在'}), 404
+    
+    task = processing_tasks[task_id]
+    
+    # 返回当前已处理的片段
+    preview_data = {
+        'status': task.get('status'),
+        'progress': task.get('progress', 0),
+        'current_chunk': task.get('current_chunk', 0),
+        'total_chunks': task.get('total_chunks', 0),
+        'segments': task.get('partial_segments', []),
+        'status_message': task.get('status_message', '')
+    }
+    
+    # 如果已完成，返回所有片段
+    if task.get('status') == 'completed' and 'segments' in task:
+        preview_data['segments'] = task['segments']
+    
+    return jsonify(preview_data)
 
 @app.route('/clear_uploads', methods=['POST'])
 def clear_uploads():

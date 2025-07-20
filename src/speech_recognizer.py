@@ -18,11 +18,12 @@ class SpeechRecognizer:
         self.device = device
         self.model = whisper.load_model(model_size, device=device)
         
-    def transcribe(self, audio_path: str, **kwargs) -> Dict:
+    def transcribe(self, audio_path: str, progress_callback=None, **kwargs) -> Dict:
         """识别音频文件
         
         Args:
             audio_path: 音频文件路径
+            progress_callback: 进度回调函数
             **kwargs: 其他Whisper参数
             
         Returns:
@@ -42,6 +43,11 @@ class SpeechRecognizer:
         
         # 合并用户参数
         params = {**default_params, **kwargs}
+        
+        # 如果有进度回调，使用verbose_callback
+        if progress_callback:
+            params["verbose"] = True
+            params["verbose_callback"] = progress_callback
         
         # 执行识别
         result = self.model.transcribe(audio_path, **params)

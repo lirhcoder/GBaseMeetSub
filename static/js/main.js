@@ -125,6 +125,24 @@ function updateProgress(data) {
     progressFill.style.width = progress + '%';
     progressFill.textContent = progress + '%';
     statusMessage.textContent = data.status_message || '处理中...';
+    
+    // 显示片段信息
+    if (data.current_chunk && data.total_chunks) {
+        document.getElementById('chunkInfo').textContent = 
+            `片段: ${data.current_chunk}/${data.total_chunks}`;
+    }
+    
+    // 显示音频播放器
+    if (progress > 5 && !document.getElementById('audioPlayer').src) {
+        document.getElementById('audioPreview').style.display = 'block';
+        document.getElementById('audioPlayer').src = `/preview/${currentTaskId}`;
+    }
+    
+    // 开始字幕预览轮询
+    if (progress > 10 && !window.subtitleInterval) {
+        document.getElementById('subtitlePreview').style.display = 'block';
+        startSubtitlePreview();
+    }
 }
 
 // 显示结果
@@ -160,6 +178,51 @@ newTaskBtn.addEventListener('click', () => {
     resetUI();
 });
 
+// 字幕预览
+function startSubtitlePreview() {
+    window.subtitleInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/preview_subtitles/${currentTaskId}`);
+            const data = await response.json();
+            
+            if (data.segments && data.segments.length > 0) {
+                updateSubtitleDisplay(data.segments);
+            }
+            
+            // 如果任务完成，停止轮询
+            if (data.status === 'completed' || data.status === 'error') {
+                clearInterval(window.subtitleInterval);
+                window.subtitleInterval = null;
+            }
+        } catch (error) {
+            console.error('字幕预览错误:', error);
+        }
+    }, 2000); // 每2秒更新一次
+}
+
+// 更新字幕显示
+function updateSubtitleDisplay(segments) {
+    const container = document.getElementById('subtitleContent');
+    const lastSegments = segments.slice(-10); // 显示最后10条
+    
+    container.innerHTML = lastSegments.map(segment => `
+        <div class="subtitle-item">
+            <div class="subtitle-time">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
+            <div class="subtitle-text">${segment.text}</div>
+        </div>
+    `).join('');
+    
+    // 自动滚动到底部
+    container.scrollTop = container.scrollHeight;
+}
+
+// 格式化时间
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
 // 重置UI
 function resetUI() {
     selectedFile = null;
@@ -171,8 +234,20 @@ function resetUI() {
     processBtn.disabled = true;
     progressFill.style.width = '0%';
     
+    // 清除音频和字幕预览
+    document.getElementById('audioPreview').style.display = 'none';
+    document.getElementById('audioPlayer').src = '';
+    document.getElementById('subtitlePreview').style.display = 'none';
+    document.getElementById('subtitleContent').innerHTML = '';
+    document.getElementById('chunkInfo').textContent = '';
+    
     if (statusInterval) {
         clearInterval(statusInterval);
+    }
+    
+    if (window.subtitleInterval) {
+        clearInterval(window.subtitleInterval);
+        window.subtitleInterval = null;
     }
 }
 
