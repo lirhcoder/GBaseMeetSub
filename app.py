@@ -127,18 +127,28 @@ def process_audio_task(task_id, filepath, model_size, subtitle_format):
     try:
         # 进度回调函数
         def update_progress(progress_info):
-            processing_tasks[task_id].update({
+            task_update = {
                 'progress': progress_info['current_progress'],
                 'status_message': progress_info['message'],
                 'current_chunk': progress_info.get('current_chunk', 0),
                 'total_chunks': progress_info.get('total_chunks', 0),
-                'partial_segments': progress_info.get('partial_results', [])[-10:]  # 最后10个片段供预览
-            })
+                'chunk_start_time': datetime.now().isoformat()  # 记录当前片段开始时间
+            }
+            
+            # 保存所有片段，而不是只保存最后几个
+            if 'partial_results' in progress_info:
+                task_update['partial_segments'] = progress_info['partial_results']
+            
+            # 添加时间统计信息
+            if 'chunk_times' in progress_info:
+                task_update['chunk_times'] = progress_info['chunk_times']
+                
+            processing_tasks[task_id].update(task_update)
         
         # 创建增强处理管道
         pipeline = EnhancedPipeline({
             'model_size': model_size,
-            'chunk_duration': 60  # 60秒片段
+            'chunk_duration': 30  # 30秒片段，更快的初始反馈
         })
         
         # 处理音频

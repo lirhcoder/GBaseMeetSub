@@ -3,6 +3,8 @@ import os
 import time
 from typing import Dict, List, Optional, Callable
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 from .audio_splitter import AudioSplitter
 from .speech_recognizer import SpeechRecognizer
 from .term_manager import TermManager
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 class EnhancedPipeline:
     def __init__(self, config: Optional[Dict] = None):
         self.config = config or {}
-        self.chunk_duration = self.config.get('chunk_duration', 60)  # 60秒片段
+        self.chunk_duration = self.config.get('chunk_duration', 30)  # 30秒片段，更快反馈
         
         # 初始化组件
         self.splitter = AudioSplitter(self.chunk_duration)
@@ -41,7 +43,9 @@ class EnhancedPipeline:
             'total_chunks': 0,
             'current_progress': 0,
             'message': '',
-            'partial_results': []
+            'partial_results': [],
+            'chunk_times': [],  # 记录每个片段的处理时间
+            'total_start_time': None
         }
     
     def process_audio_chunked(self, 
@@ -62,6 +66,7 @@ class EnhancedPipeline:
             处理结果
         """
         start_time = time.time()
+        self.progress_info['total_start_time'] = start_time
         os.makedirs(output_dir, exist_ok=True)
         
         # 临时目录存储音频片段
@@ -83,13 +88,34 @@ class EnhancedPipeline:
             all_segments = []
             all_corrections = []
             
+            # 优先批次的大小
+            priority_batch_size = 5
+            
             for i, chunk in enumerate(chunks):
+                chunk_start_time = time.time()
                 self.progress_info['current_chunk'] = i + 1
-                chunk_progress = 10 + (80 * i // len(chunks))
+                
+                # 计算进度
+                if i < priority_batch_size:
+                    # 前5个片段快速进度（占30%）
+                    chunk_progress = 10 + (20 * i // priority_batch_size)
+                    status_prefix = f'[优先处理] 片段'
+                else:
+                    # 后续片段正常进度（占70%）
+                    chunk_progress = 30 + (60 * (i - priority_batch_size) // (len(chunks) - priority_batch_size))
+                    status_prefix = f'处理片段'
+                
+                # 显示处理时间信息
+                elapsed_time = time.time() - start_time
+                avg_chunk_time = elapsed_time / (i + 1) if i > 0 else 0
+                estimated_total = avg_chunk_time * len(chunks)
+                remaining_time = estimated_total - elapsed_time
+                
+                time_message = f'已用: {self._format_time(elapsed_time)}, 剩余: {self._format_time(remaining_time)}'
                 
                 self._update_progress(
                     chunk_progress,
-                    f'处理片段 {i+1}/{len(chunks)} ({chunk["start_time"]:.0f}s-{chunk["end_time"]:.0f}s)...',
+                    f'{status_prefix} {i+1}/{len(chunks)} ({chunk["start_time"]:.0f}s-{chunk["end_time"]:.0f}s) - {time_message}',
                     progress_callback
                 )
                 
@@ -120,14 +146,22 @@ class EnhancedPipeline:
                 
                 all_segments.extend(corrected_segments)
                 
+                # 记录片段处理时间
+                chunk_time = time.time() - chunk_start_time
+                self.progress_info['chunk_times'].append({
+                    'chunk_id': i + 1,
+                    'time_range': f'{chunk["start_time"]:.0f}s-{chunk["end_time"]:.0f}s',
+                    'processing_time': chunk_time
+                })
+                
                 # 保存部分结果供预览
                 self.progress_info['partial_results'] = all_segments
                 
-                # 更新进度
+                # 更新进度，显示该片段处理时间
                 chunk_progress = 10 + (80 * (i + 1) // len(chunks))
                 self._update_progress(
                     chunk_progress,
-                    f'完成片段 {i+1}/{len(chunks)}',
+                    f'完成片段 {i+1}/{len(chunks)} (用时: {self._format_time(chunk_time)})',
                     progress_callback
                 )
             
@@ -185,3 +219,16 @@ class EnhancedPipeline:
     def get_progress(self) -> Dict:
         """获取当前进度信息"""
         return self.progress_info.copy()
+    
+    def _format_time(self, seconds: float) -> str:
+        """格式化时间显示"""
+        if seconds < 60:
+            return f"{seconds:.1f}秒"
+        elif seconds < 3600:
+            minutes = int(seconds // 60)
+            secs = int(seconds % 60)
+            return f"{minutes}分{secs}秒"
+        else:
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            return f"{hours}小时{minutes}分"
