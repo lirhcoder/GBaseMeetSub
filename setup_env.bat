@@ -54,7 +54,7 @@ if exist requirements-dev.txt (
 
 REM 验证日语分词工具安装
 echo 验证日语分词工具...
-%PYTHON_CMD% -c "import fugashi; print('日语分词工具安装成功')" 2>nul
+%PYTHON_CMD% -c "import fugashi; print('日语分词工具安装成功')" 2>nul:
 if errorlevel 1 (
     echo 日语分词工具安装可能有问题，但可以继续
 )

@@ -43,6 +43,7 @@ Thumbs.db
 # Project specific
 data/
 output/
+uploads/
 *.mp4
 *.mp3
 *.wav
@@ -61,3 +62,5 @@ htmlcov/
 # Temporary files
 *.tmp
 temp/
+nul
+nul_temp
