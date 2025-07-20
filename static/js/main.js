@@ -178,6 +178,23 @@ function showResults(data) {
         document.getElementById('audioPlayer').src = `/preview/${currentTaskId}`;
         initAudioPlayer();
     }
+    
+    // 在结果区域显示完整字幕列表
+    if (data.segments && data.segments.length > 0) {
+        const resultSubtitleContent = document.getElementById('resultSubtitleContent');
+        
+        // 生成完整的字幕HTML
+        resultSubtitleContent.innerHTML = data.segments.map((segment, index) => `
+            <div class="subtitle-item" 
+                 data-start="${segment.start}" 
+                 data-end="${segment.end}"
+                 data-index="${index}"
+                 onclick="seekToTime(${segment.start})">
+                <div class="subtitle-time">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
+                <div class="subtitle-text">${segment.text}</div>
+            </div>
+        `).join('');
+    }
 }
 
 // 新任务按钮
@@ -186,20 +203,36 @@ newTaskBtn.addEventListener('click', () => {
 });
 
 // 字幕预览
+let lastSegmentCount = 0; // 记录上次的字幕数量
+
 function startSubtitlePreview() {
+    // 重置计数器
+    lastSegmentCount = 0;
+    
     window.subtitleInterval = setInterval(async () => {
         try {
             const response = await fetch(`/preview_subtitles/${currentTaskId}`);
             const data = await response.json();
             
             if (data.segments && data.segments.length > 0) {
-                updateSubtitleDisplay(data.segments);
+                // 检查是否有新的字幕片段
+                if (data.segments.length > lastSegmentCount) {
+                    // 只添加新的片段
+                    const newSegments = data.segments.slice(lastSegmentCount);
+                    updateSubtitleDisplay(newSegments, true); // append模式
+                    lastSegmentCount = data.segments.length;
+                }
             }
             
             // 如果任务完成，停止轮询
             if (data.status === 'completed' || data.status === 'error') {
                 clearInterval(window.subtitleInterval);
                 window.subtitleInterval = null;
+                
+                // 如果是完成状态，确保显示所有字幕
+                if (data.status === 'completed' && data.segments) {
+                    updateSubtitleDisplay(data.segments, false); // 完整替换，确保顺序正确
+                }
             }
         } catch (error) {
             console.error('字幕预览错误:', error);
@@ -208,20 +241,34 @@ function startSubtitlePreview() {
 }
 
 // 更新字幕显示
-function updateSubtitleDisplay(segments) {
+function updateSubtitleDisplay(segments, append = false) {
     const container = document.getElementById('subtitleContent');
     
-    // 显示所有片段，不限制数量
-    container.innerHTML = segments.map((segment, index) => `
+    // 获取现有的字幕数量，用于计算新的索引
+    const existingItems = container.querySelectorAll('.subtitle-item').length;
+    
+    // 生成新的字幕HTML
+    const newSubtitlesHtml = segments.map((segment, index) => {
+        const actualIndex = append ? existingItems + index : index;
+        return `
         <div class="subtitle-item" 
              data-start="${segment.start}" 
              data-end="${segment.end}"
-             data-index="${index}"
+             data-index="${actualIndex}"
              onclick="seekToTime(${segment.start})">
             <div class="subtitle-time">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
             <div class="subtitle-text">${segment.text}</div>
         </div>
-    `).join('');
+    `;
+    }).join('');
+    
+    if (append) {
+        // 追加模式：保留现有内容，添加新内容
+        container.innerHTML += newSubtitlesHtml;
+    } else {
+        // 覆盖模式：替换所有内容
+        container.innerHTML = newSubtitlesHtml;
+    }
     
     // 不自动滚动，保持当前位置
     // container.scrollTop = container.scrollHeight;
@@ -241,6 +288,7 @@ function seekToTime(seconds) {
 
 // 高亮当前播放的字幕
 function highlightCurrentSubtitle(currentTime) {
+    // 同时处理进度中的字幕和结果中的字幕
     const items = document.querySelectorAll('.subtitle-item');
     items.forEach(item => {
         const start = parseFloat(item.dataset.start);
@@ -248,6 +296,20 @@ function highlightCurrentSubtitle(currentTime) {
         
         if (currentTime >= start && currentTime <= end) {
             item.classList.add('playing');
+            
+            // 如果当前字幕不在视口中，滚动到它
+            const container = item.closest('.subtitle-content');
+            if (container) {
+                const itemTop = item.offsetTop;
+                const itemBottom = itemTop + item.offsetHeight;
+                const containerTop = container.scrollTop;
+                const containerBottom = containerTop + container.clientHeight;
+                
+                if (itemTop < containerTop || itemBottom > containerBottom) {
+                    // 滚动到当前字幕的中间位置
+                    container.scrollTop = itemTop - container.clientHeight / 2 + item.offsetHeight / 2;
+                }
+            }
         } else {
             item.classList.remove('playing');
         }
@@ -312,7 +374,11 @@ function resetUI() {
     document.getElementById('audioPlayer').src = '';
     document.getElementById('subtitlePreview').style.display = 'none';
     document.getElementById('subtitleContent').innerHTML = '';
+    document.getElementById('resultSubtitleContent').innerHTML = '';
     document.getElementById('chunkInfo').textContent = '';
+    
+    // 重置字幕计数器
+    lastSegmentCount = 0;
     
     if (statusInterval) {
         clearInterval(statusInterval);
