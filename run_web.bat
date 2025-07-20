@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 REM 启动Web UI的脚本
 
 echo === 启动 GBaseMeetSub Web UI ===

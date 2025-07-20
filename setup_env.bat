@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 REM Windows虚拟环境设置脚本
 
 echo === 设置GBaseMeetSub开发环境 ===

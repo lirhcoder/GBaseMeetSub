@@ -1,0 +1,16 @@
+# 删除 C:\development\GBaseMeetSub\nul 文件的方法
+
+## 方法1：在命令提示符（CMD）中运行
+del "\\?\C:\development\GBaseMeetSub\nul"
+
+## 方法2：在 PowerShell 中运行
+Remove-Item -Path "\\?\C:\development\GBaseMeetSub\nul" -Force
+
+## 方法3：使用管理员权限的命令提示符
+1. 以管理员身份运行 CMD
+2. 执行: del "\\?\C:\development\GBaseMeetSub\nul"
+
+## 方法4：如果上述方法都不行，试试重命名后删除
+cd C:\development\GBaseMeetSub
+ren nul nul_temp
+del nul_temp

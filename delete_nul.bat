@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 REM 删除错误创建的nul文件的脚本
 
 echo 尝试删除nul文件...

@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 REM 环境检查脚本
 
 echo === GBaseMeetSub 环境检查 ===
