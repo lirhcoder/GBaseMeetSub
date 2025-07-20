@@ -1,12 +1,16 @@
 """主流程 - 集成所有模块的完整处理流程"""
 from typing import Dict, Optional
 import os
+import sys
 import logging
 from .speech_recognizer import SpeechRecognizer
 from .term_manager import TermManager
 from .term_corrector import TermCorrector
 from .subtitle_generator import SubtitleGenerator
 from .accuracy_validator import AccuracyValidator
+
+# 获取项目根目录
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +28,15 @@ class SpeechProcessingPipeline:
         self.recognizer = SpeechRecognizer(
             model_size=self.config.get("model_size", "large-v3")
         )
-        self.term_manager = TermManager()
+        
+        # 使用项目根目录下的data文件夹
+        data_dir = os.path.join(PROJECT_ROOT, 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        
+        terms_file = os.path.join(data_dir, 'terms.json')
+        log_file = os.path.join(data_dir, 'corrections_log.json')
+        
+        self.term_manager = TermManager(terms_file, log_file)
         self.corrector = TermCorrector(self.term_manager)
         self.subtitle_gen = SubtitleGenerator()
         self.validator = AccuracyValidator()

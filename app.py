@@ -1,22 +1,35 @@
 """Flask Web UI for GBaseMeetSub"""
 import os
+import sys
 import json
 from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import threading
 import uuid
+
+# 获取应用根目录
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# 确保src目录在Python路径中
+sys.path.insert(0, APP_ROOT)
+
+# 现在导入项目模块
 from src.main_pipeline import SpeechProcessingPipeline
 
-app = Flask(__name__)
+# 创建Flask应用，指定模板和静态文件的绝对路径
+app = Flask(__name__,
+            template_folder=os.path.join(APP_ROOT, 'templates'),
+            static_folder=os.path.join(APP_ROOT, 'static'))
+
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['OUTPUT_FOLDER'] = 'output'
+app.config['UPLOAD_FOLDER'] = os.path.join(APP_ROOT, 'uploads')
+app.config['OUTPUT_FOLDER'] = os.path.join(APP_ROOT, 'output')
+app.config['DATA_FOLDER'] = os.path.join(APP_ROOT, 'data')
 
 # 确保必要的目录存在
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
-os.makedirs('data', exist_ok=True)
+for folder in [app.config['UPLOAD_FOLDER'], app.config['OUTPUT_FOLDER'], app.config['DATA_FOLDER']]:
+    os.makedirs(folder, exist_ok=True)
 
 # 存储处理任务状态
 processing_tasks = {}
@@ -27,19 +40,10 @@ ALLOWED_EXTENSIONS = {'mp4', 'mp3', 'wav', 'm4a', 'webm'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route('/test')
-def test():
-    """测试路由"""
-    return "Server is running! Current directory: " + os.getcwd()
-
 @app.route('/')
 def index():
     """主页"""
-    try:
-        return render_template('index.html')
-    except Exception as e:
-        # 如果模板找不到，返回错误信息
-        return f"Error: {str(e)}<br>Current directory: {os.getcwd()}<br>Template path: {os.path.join(os.getcwd(), 'templates')}"
+    return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -169,7 +173,8 @@ def download_subtitle(task_id):
 def get_terms():
     """获取术语库"""
     try:
-        with open('data/terms.json', 'r', encoding='utf-8') as f:
+        terms_file = os.path.join(app.config['DATA_FOLDER'], 'terms.json')
+        with open(terms_file, 'r', encoding='utf-8') as f:
             terms = json.load(f)
         return jsonify(terms)
     except FileNotFoundError:
@@ -186,9 +191,11 @@ def add_correction():
     if not original or not corrected:
         return jsonify({'error': '缺少必要参数'}), 400
     
-    # 使用术语管理器添加纠正
+    # 使用术语管理器添加纠正，传入正确的路径
     from src.term_manager import TermManager
-    term_manager = TermManager()
+    terms_file = os.path.join(app.config['DATA_FOLDER'], 'terms.json')
+    log_file = os.path.join(app.config['DATA_FOLDER'], 'corrections_log.json')
+    term_manager = TermManager(terms_file, log_file)
     term_manager.add_correction(original, corrected, context, confidence=1.0)
     
     return jsonify({
@@ -211,5 +218,17 @@ def clear_uploads():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # 显示启动信息
+    print(f"\n{'='*50}")
+    print(f"GBaseMeetSub Web UI 启动中...")
+    print(f"{'='*50}")
+    print(f"应用根目录: {APP_ROOT}")
+    print(f"模板目录: {os.path.join(APP_ROOT, 'templates')}")
+    print(f"静态文件目录: {os.path.join(APP_ROOT, 'static')}")
+    print(f"数据目录: {app.config['DATA_FOLDER']}")
+    print(f"上传目录: {app.config['UPLOAD_FOLDER']}")
+    print(f"输出目录: {app.config['OUTPUT_FOLDER']}")
+    print(f"{'='*50}\n")
+    
     # 开发模式运行
     app.run(debug=True, host='0.0.0.0', port=5000)
