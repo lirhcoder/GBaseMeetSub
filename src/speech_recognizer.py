@@ -1,7 +1,7 @@
 """语音识别模块 - 封装Whisper进行日语识别"""
 import whisper
 import numpy as np
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 import torch
 
 class SpeechRecognizer:
