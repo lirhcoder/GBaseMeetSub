@@ -38,4 +38,5 @@ echo 访问 http://localhost:5000 使用系统
 echo 按 Ctrl+C 停止服务器
 echo.
 
+REM 使用激活的虚拟环境中的python
 python app.py
