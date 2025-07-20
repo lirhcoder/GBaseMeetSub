@@ -14,7 +14,7 @@ call venv\Scripts\activate.bat
 
 REM 检查依赖
 echo 检查依赖...
-pip install -r requirements.txt
+pip install -r requirements.txt >nul 2>&1 || pip install -r requirements.txt
 
 REM 创建必要的目录
 if not exist uploads mkdir uploads

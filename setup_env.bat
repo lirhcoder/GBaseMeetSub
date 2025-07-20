@@ -52,9 +52,12 @@ if exist requirements-dev.txt (
     pip install -r requirements-dev.txt
 )
 
-REM 下载日语分词数据
-echo 下载日语分词数据...
-%PYTHON_CMD% -m unidic download
+REM 验证日语分词工具安装
+echo 验证日语分词工具...
+%PYTHON_CMD% -c "import fugashi; print('日语分词工具安装成功')" 2>nul
+if errorlevel 1 (
+    echo 日语分词工具安装可能有问题，但可以继续
+)
 
 REM 创建必要的目录
 echo 创建项目目录...
