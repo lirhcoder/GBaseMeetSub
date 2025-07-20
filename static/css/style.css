@@ -319,50 +319,39 @@ table tr:hover {
 }
 
 .audio-preview.minimized {
-    width: 60px;
-    height: 60px;
-    padding: 10px;
+    width: 50px;
+    height: 50px;
+    padding: 0;
     cursor: pointer;
+    overflow: hidden;
 }
 
 .audio-preview.minimized audio {
     display: none;
 }
 
-.audio-preview.minimized h3 {
-    margin: 0;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-.audio-preview.minimized h3 .audio-controls {
-    display: none;
+.audio-preview.minimized .audio-header {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .audio-preview.minimized::before {
-    content: "🎵";
-    font-size: 30px;
+    content: "♪";
+    font-size: 24px;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     pointer-events: none;
+    color: #3498db;
 }
 
-.audio-preview h3 {
-    margin: 0 0 10px 0;
-    color: #2c3e50;
-    font-size: 16px;
+.audio-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.audio-controls {
-    display: flex;
-    gap: 10px;
+    justify-content: flex-end;
+    margin-bottom: 5px;
 }
 
 .audio-control-btn {
@@ -631,4 +620,110 @@ table tr:hover {
 
 .cancel-btn:hover {
     background-color: #7f8c8d;
+}
+
+/* 编辑示例展开 */
+.edited-examples {
+    margin-top: 15px;
+}
+
+.edited-examples details {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.edited-examples summary {
+    cursor: pointer;
+    color: #3498db;
+    font-weight: bold;
+}
+
+.full-edits {
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.full-edit-item {
+    margin: 10px 0;
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+}
+
+.original-full {
+    color: #999;
+    text-decoration: line-through;
+    margin-bottom: 5px;
+}
+
+.edited-full {
+    color: #333;
+    font-weight: bold;
+}
+
+/* 高级选项 */
+.advanced-options {
+    margin-top: 20px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.advanced-options summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: #2c3e50;
+    padding: 5px;
+}
+
+.advanced-content {
+    margin-top: 15px;
+}
+
+.option-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 5px;
+}
+
+.option-group h4 {
+    margin-top: 0;
+    color: #2c3e50;
+}
+
+.option-desc {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin: 5px 0 10px 0;
+}
+
+.option-group input[type="file"],
+.option-group input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* 下载编辑后字幕按钮 */
+.download-edited-btn {
+    float: right;
+    padding: 5px 10px;
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.download-edited-btn:hover {
+    background-color: #45a049;
 }

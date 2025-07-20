@@ -17,6 +17,8 @@ class EnhancedPipeline:
     def __init__(self, config: Optional[Dict] = None):
         self.config = config or {}
         self.chunk_duration = self.config.get('chunk_duration', 30)  # 30秒片段，更快反馈
+        self.start_time = self.config.get('start_time', 0)  # 开始时间
+        self.existing_subtitle = self.config.get('existing_subtitle', None)  # 已有字幕
         
         # 初始化组件
         self.splitter = AudioSplitter(self.chunk_duration)
@@ -88,21 +90,40 @@ class EnhancedPipeline:
             all_segments = []
             all_corrections = []
             
+            # 如果有已存在的字幕，先加载它们
+            if self.existing_subtitle:
+                # TODO: 解析已有字幕并添加到all_segments
+                logger.info("检测到已有字幕，将在此基础上继续处理")
+            
+            # 根据开始时间过滤片段
+            filtered_chunks = []
+            for chunk in chunks:
+                if chunk['end_time'] > self.start_time:
+                    filtered_chunks.append(chunk)
+            
+            if len(filtered_chunks) < len(chunks):
+                logger.info(f"根据开始时间 {self.start_time}秒，跳过了 {len(chunks) - len(filtered_chunks)} 个片段")
+            
             # 优先批次的大小
             priority_batch_size = 5
             
-            for i, chunk in enumerate(chunks):
+            for i, chunk in enumerate(filtered_chunks):
                 chunk_start_time = time.time()
                 self.progress_info['current_chunk'] = i + 1
                 
                 # 计算进度
+                total_filtered = len(filtered_chunks)
                 if i < priority_batch_size:
                     # 前5个片段快速进度（占30%）
-                    chunk_progress = 10 + (20 * i // priority_batch_size)
+                    chunk_progress = 10 + (20 * i // min(priority_batch_size, total_filtered))
                     status_prefix = f'[优先处理] 片段'
                 else:
                     # 后续片段正常进度（占70%）
-                    chunk_progress = 30 + (60 * (i - priority_batch_size) // (len(chunks) - priority_batch_size))
+                    remaining = total_filtered - priority_batch_size
+                    if remaining > 0:
+                        chunk_progress = 30 + (60 * (i - priority_batch_size) // remaining)
+                    else:
+                        chunk_progress = 90
                     status_prefix = f'处理片段'
                 
                 # 显示处理时间信息
@@ -115,7 +136,7 @@ class EnhancedPipeline:
                 
                 self._update_progress(
                     chunk_progress,
-                    f'{status_prefix} {i+1}/{len(chunks)} ({chunk["start_time"]:.0f}s-{chunk["end_time"]:.0f}s) - {time_message}',
+                    f'{status_prefix} {i+1}/{total_filtered} ({chunk["start_time"]:.0f}s-{chunk["end_time"]:.0f}s) - {time_message}',
                     progress_callback
                 )
                 

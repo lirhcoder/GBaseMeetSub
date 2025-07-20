@@ -96,6 +96,14 @@ def upload_file():
         # 获取处理选项
         model_size = request.form.get('model_size', 'medium')
         subtitle_format = request.form.get('subtitle_format', 'srt')
+        start_time = float(request.form.get('start_time', 0))
+        
+        # 检查是否有已上传的字幕
+        existing_subtitle = None
+        if 'existing_subtitle' in request.files:
+            subtitle_file = request.files['existing_subtitle']
+            if subtitle_file and subtitle_file.filename:
+                existing_subtitle = subtitle_file.read().decode('utf-8')
         
         # 初始化任务状态
         processing_tasks[task_id] = {
@@ -111,7 +119,7 @@ def upload_file():
         # 在后台线程中处理
         thread = threading.Thread(
             target=process_audio_task,
-            args=(task_id, filepath, model_size, subtitle_format)
+            args=(task_id, filepath, model_size, subtitle_format, start_time, existing_subtitle)
         )
         thread.start()
         
@@ -122,7 +130,7 @@ def upload_file():
     
     return jsonify({'error': '不支持的文件格式'}), 400
 
-def process_audio_task(task_id, filepath, model_size, subtitle_format):
+def process_audio_task(task_id, filepath, model_size, subtitle_format, start_time=0, existing_subtitle=None):
     """后台处理音频任务"""
     try:
         # 进度回调函数
@@ -148,7 +156,9 @@ def process_audio_task(task_id, filepath, model_size, subtitle_format):
         # 创建增强处理管道
         pipeline = EnhancedPipeline({
             'model_size': model_size,
-            'chunk_duration': 30  # 30秒片段，更快的初始反馈
+            'chunk_duration': 30,  # 30秒片段，更快的初始反馈
+            'start_time': start_time,
+            'existing_subtitle': existing_subtitle
         })
         
         # 处理音频

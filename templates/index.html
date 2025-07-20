@@ -54,6 +54,27 @@
                     </select>
                 </div>
             </div>
+            
+            <!-- 高级选项 -->
+            <details class="advanced-options">
+                <summary>高级选项</summary>
+                <div class="advanced-content">
+                    <div class="option-group">
+                        <h4>上传已有字幕</h4>
+                        <p class="option-desc">上传已有的字幕文件，可以在此基础上继续识别或编辑</p>
+                        <input type="file" id="subtitleFile" accept=".srt,.vtt,.txt" onchange="handleSubtitleUpload(event)">
+                        <div id="uploadedSubtitleInfo" style="display: none;">
+                            <p>已上传字幕: <span id="uploadedSubtitleName"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="option-group">
+                        <h4>从指定时间开始</h4>
+                        <p class="option-desc">设置开始识别的时间点（秒）</p>
+                        <input type="number" id="startTime" min="0" step="1" placeholder="0" value="0">
+                    </div>
+                </div>
+            </details>
         </section>
 
         <!-- 处理按钮 -->
@@ -114,7 +135,11 @@
 
             <!-- 字幕预览（完成后仍显示） -->
             <div id="resultSubtitlePreview" class="subtitle-preview">
-                <h3>完整字幕列表（点击任意行可重放）</h3>
+                <h3>完整字幕列表（点击任意行可重放）
+                    <button onclick="downloadEditedSubtitles()" class="download-edited-btn" title="下载编辑后的字幕">
+                        💾 下载
+                    </button>
+                </h3>
                 <div id="resultSubtitleContent" class="subtitle-content"></div>
             </div>
 
@@ -160,14 +185,11 @@
 
     <!-- 音频播放器（浮动） -->
     <div id="audioPreview" class="audio-preview" style="display: none;" onclick="handleAudioPlayerClick(event)">
-        <h3>
-            音频播放器
-            <div class="audio-controls">
-                <button class="audio-control-btn" onclick="toggleAudioPlayer(event)" title="最小化">
-                    <span id="toggleIcon">－</span>
-                </button>
-            </div>
-        </h3>
+        <div class="audio-header">
+            <button class="audio-control-btn" onclick="toggleAudioPlayer(event)" title="最小化/展开">
+                <span id="toggleIcon">－</span>
+            </button>
+        </div>
         <audio id="audioPlayer" controls style="width: 100%;">
             您的浏览器不支持音频播放
         </audio>

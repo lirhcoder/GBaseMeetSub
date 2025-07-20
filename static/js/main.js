@@ -2,6 +2,7 @@
 let selectedFile = null;
 let currentTaskId = null;
 let statusInterval = null;
+let uploadedSubtitle = null;
 
 // DOM元素
 const uploadArea = document.getElementById('uploadArea');
@@ -66,6 +67,12 @@ processBtn.addEventListener('click', async () => {
     formData.append('audio', selectedFile);
     formData.append('model_size', document.getElementById('modelSize').value);
     formData.append('subtitle_format', document.getElementById('subtitleFormat').value);
+    formData.append('start_time', document.getElementById('startTime').value || '0');
+    
+    // 如果有上传的字幕，也添加到表单
+    if (uploadedSubtitle) {
+        formData.append('existing_subtitle', uploadedSubtitle);
+    }
     
     processBtn.disabled = true;
     progressSection.style.display = 'block';
@@ -336,7 +343,7 @@ function handleAudioPlayerClick(event) {
     // 如果是最小化状态，点击整个区域都可以展开
     if (audioPreview.classList.contains('minimized')) {
         // 确保不是点击了其他控件
-        if (event.target === audioPreview || event.target.tagName === 'H3') {
+        if (event.target === audioPreview || event.target.className === 'audio-header') {
             toggleAudioPlayer();
         }
     }
@@ -563,11 +570,88 @@ function showEditNotification() {
     }
 }
 
+// 查找字符串差异，提取修改的部分
+function findDifferences(original, edited) {
+    // 简单的差异检测算法
+    const terms = [];
+    
+    // 按空格分词
+    const originalWords = original.split(/\s+/);
+    const editedWords = edited.split(/\s+/);
+    
+    // 使用动态规划找出差异
+    let i = 0, j = 0;
+    while (i < originalWords.length || j < editedWords.length) {
+        if (i >= originalWords.length) {
+            // 原文已结束，剩余都是新增
+            j++;
+        } else if (j >= editedWords.length) {
+            // 编辑后已结束，剩余都是删除
+            i++;
+        } else if (originalWords[i] === editedWords[j]) {
+            // 相同，继续
+            i++;
+            j++;
+        } else {
+            // 不同，查找最近的匹配
+            let found = false;
+            
+            // 查找是否是替换
+            for (let k = 1; k <= 3 && i + k <= originalWords.length && j + k <= editedWords.length; k++) {
+                if (originalWords[i + k] === editedWords[j + k]) {
+                    // 找到匹配，这是一个替换
+                    const originalTerm = originalWords.slice(i, i + k).join(' ');
+                    const editedTerm = editedWords.slice(j, j + k).join(' ');
+                    if (originalTerm !== editedTerm) {
+                        terms.push({
+                            original: originalTerm,
+                            corrected: editedTerm
+                        });
+                    }
+                    i += k;
+                    j += k;
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                // 单词替换
+                if (i < originalWords.length && j < editedWords.length) {
+                    terms.push({
+                        original: originalWords[i],
+                        corrected: editedWords[j]
+                    });
+                }
+                i++;
+                j++;
+            }
+        }
+    }
+    
+    return terms;
+}
+
 // 保存编辑的字幕并提取术语
 async function saveEditedSubtitles() {
     if (Object.keys(editedSubtitles).length === 0) {
         return;
     }
+    
+    // 提取所有差异术语
+    const allTerms = [];
+    Object.values(editedSubtitles).forEach(edit => {
+        const diffs = findDifferences(edit.original, edit.edited);
+        diffs.forEach(diff => {
+            // 避免重复
+            const exists = allTerms.some(t => 
+                t.original === diff.original && t.corrected === diff.corrected
+            );
+            if (!exists) {
+                allTerms.push(diff);
+            }
+        });
+    });
     
     // 显示确认对话框
     const confirmDialog = document.createElement('div');
@@ -575,15 +659,28 @@ async function saveEditedSubtitles() {
     confirmDialog.innerHTML = `
         <div class="confirm-content">
             <h3>提取专用术语</h3>
-            <p>系统检测到以下修改，是否将其作为专用术语保存？</p>
+            <p>系统从 ${Object.keys(editedSubtitles).length} 处修改中提取了以下术语：</p>
             <div class="term-preview">
-                ${Object.values(editedSubtitles).map(edit => `
+                ${allTerms.length > 0 ? allTerms.map(term => `
                     <div class="term-item">
-                        <input type="checkbox" checked value="${edit.original}|${edit.edited}">
-                        <span class="original">${edit.original}</span> → 
-                        <span class="corrected">${edit.edited}</span>
+                        <input type="checkbox" checked value="${term.original}|${term.corrected}">
+                        <span class="original">${term.original}</span> → 
+                        <span class="corrected">${term.corrected}</span>
                     </div>
-                `).join('')}
+                `).join('') : '<p style="text-align: center; color: #999;">未检测到具体的术语差异</p>'}
+            </div>
+            <div class="edited-examples">
+                <details>
+                    <summary>查看完整的编辑内容</summary>
+                    <div class="full-edits">
+                        ${Object.values(editedSubtitles).map(edit => `
+                            <div class="full-edit-item">
+                                <div class="original-full">${edit.original}</div>
+                                <div class="edited-full">${edit.edited}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </details>
             </div>
             <div class="dialog-actions">
                 <button onclick="confirmSaveTerms()" class="confirm-btn">确认保存</button>
@@ -677,4 +774,144 @@ function cancelEdits() {
     if (notification) {
         notification.remove();
     }
+}
+
+// 处理字幕文件上传
+function handleSubtitleUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        uploadedSubtitle = e.target.result;
+        document.getElementById('uploadedSubtitleInfo').style.display = 'block';
+        document.getElementById('uploadedSubtitleName').textContent = file.name;
+        
+        // 如果是SRT或VTT格式，解析并显示预览
+        if (file.name.endsWith('.srt') || file.name.endsWith('.vtt')) {
+            const segments = parseSubtitle(e.target.result, file.name.endsWith('.srt') ? 'srt' : 'vtt');
+            if (segments.length > 0) {
+                alert(`成功加载 ${segments.length} 条字幕`);
+            }
+        }
+    };
+    reader.readAsText(file);
+}
+
+// 解析字幕文件
+function parseSubtitle(content, format) {
+    const segments = [];
+    
+    if (format === 'srt') {
+        // 解析SRT格式
+        const blocks = content.trim().split(/\n\s*\n/);
+        blocks.forEach(block => {
+            const lines = block.trim().split('\n');
+            if (lines.length >= 3) {
+                const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/);
+                if (timeMatch) {
+                    const start = srtTimeToSeconds(timeMatch[1]);
+                    const end = srtTimeToSeconds(timeMatch[2]);
+                    const text = lines.slice(2).join(' ');
+                    segments.push({ start, end, text });
+                }
+            }
+        });
+    } else if (format === 'vtt') {
+        // 解析VTT格式
+        const lines = content.split('\n');
+        let i = 0;
+        
+        // 跳过WEBVTT头
+        while (i < lines.length && !lines[i].includes('-->')) {
+            i++;
+        }
+        
+        while (i < lines.length) {
+            const line = lines[i];
+            if (line.includes('-->')) {
+                const timeMatch = line.match(/(\d{2}:\d{2}:\d{2}.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}.\d{3})/);
+                if (timeMatch) {
+                    const start = vttTimeToSeconds(timeMatch[1]);
+                    const end = vttTimeToSeconds(timeMatch[2]);
+                    let text = '';
+                    i++;
+                    while (i < lines.length && lines[i].trim() !== '' && !lines[i].includes('-->')) {
+                        text += lines[i] + ' ';
+                        i++;
+                    }
+                    segments.push({ start, end, text: text.trim() });
+                }
+            }
+            i++;
+        }
+    }
+    
+    return segments;
+}
+
+// SRT时间转换为秒
+function srtTimeToSeconds(timeStr) {
+    const match = timeStr.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+    if (match) {
+        return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]) + parseInt(match[4]) / 1000;
+    }
+    return 0;
+}
+
+// VTT时间转换为秒
+function vttTimeToSeconds(timeStr) {
+    const match = timeStr.match(/(\d{2}):(\d{2}):(\d{2}).(\d{3})/);
+    if (match) {
+        return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]) + parseInt(match[4]) / 1000;
+    }
+    return 0;
+}
+
+// 下载当前编辑的字幕
+function downloadEditedSubtitles() {
+    // 收集所有字幕
+    const subtitleItems = document.querySelectorAll('.subtitle-item');
+    const segments = [];
+    
+    subtitleItems.forEach(item => {
+        const start = parseFloat(item.dataset.start);
+        const end = parseFloat(item.dataset.end);
+        const text = item.querySelector('.subtitle-text').textContent.trim();
+        segments.push({ start, end, text });
+    });
+    
+    if (segments.length === 0) {
+        alert('没有字幕可下载');
+        return;
+    }
+    
+    // 生成SRT格式
+    let srtContent = '';
+    segments.forEach((segment, index) => {
+        srtContent += `${index + 1}\n`;
+        srtContent += `${secondsToSrtTime(segment.start)} --> ${secondsToSrtTime(segment.end)}\n`;
+        srtContent += `${segment.text}\n\n`;
+    });
+    
+    // 创建下载
+    const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `edited_subtitle_${new Date().getTime()}.srt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// 秒转换为SRT时间格式
+function secondsToSrtTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 1000);
+    
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
 }
