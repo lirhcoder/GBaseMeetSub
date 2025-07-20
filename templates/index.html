@@ -72,13 +72,6 @@
             <p id="statusMessage" class="status-message"></p>
             <p id="chunkInfo" class="chunk-info"></p>
             
-            <!-- 音频预览 -->
-            <div id="audioPreview" class="audio-preview" style="display: none;">
-                <h3>音频预览</h3>
-                <audio id="audioPlayer" controls style="width: 100%;">
-                    您的浏览器不支持音频播放
-                </audio>
-            </div>
             
             <!-- 字幕预览 -->
             <div id="subtitlePreview" class="subtitle-preview" style="display: none;">
@@ -157,6 +150,21 @@
                 <button id="cancelTermBtn" class="secondary-btn">取消</button>
             </div>
         </section>
+    </div>
+
+    <!-- 音频播放器（浮动） -->
+    <div id="audioPreview" class="audio-preview" style="display: none;">
+        <h3>
+            音频播放器
+            <div class="audio-controls">
+                <button class="audio-control-btn" onclick="toggleAudioPlayer()" title="最小化">
+                    <span id="toggleIcon">－</span>
+                </button>
+            </div>
+        </h3>
+        <audio id="audioPlayer" controls style="width: 100%;">
+            您的浏览器不支持音频播放
+        </audio>
     </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

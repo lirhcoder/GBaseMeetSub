@@ -136,6 +136,7 @@ function updateProgress(data) {
     if (progress > 5 && !document.getElementById('audioPlayer').src) {
         document.getElementById('audioPreview').style.display = 'block';
         document.getElementById('audioPlayer').src = `/preview/${currentTaskId}`;
+        initAudioPlayer(); // 初始化音频播放器事件
     }
     
     // 开始字幕预览轮询
@@ -171,6 +172,12 @@ function showResults(data) {
     downloadBtn.onclick = () => {
         window.location.href = `/download/${currentTaskId}`;
     };
+    
+    // 保持音频播放器显示
+    if (!document.getElementById('audioPlayer').src && currentTaskId) {
+        document.getElementById('audioPlayer').src = `/preview/${currentTaskId}`;
+        initAudioPlayer();
+    }
 }
 
 // 新任务按钮
@@ -203,17 +210,83 @@ function startSubtitlePreview() {
 // 更新字幕显示
 function updateSubtitleDisplay(segments) {
     const container = document.getElementById('subtitleContent');
-    const lastSegments = segments.slice(-10); // 显示最后10条
     
-    container.innerHTML = lastSegments.map(segment => `
-        <div class="subtitle-item">
+    // 显示所有片段，不限制数量
+    container.innerHTML = segments.map((segment, index) => `
+        <div class="subtitle-item" 
+             data-start="${segment.start}" 
+             data-end="${segment.end}"
+             data-index="${index}"
+             onclick="seekToTime(${segment.start})">
             <div class="subtitle-time">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
             <div class="subtitle-text">${segment.text}</div>
         </div>
     `).join('');
     
-    // 自动滚动到底部
-    container.scrollTop = container.scrollHeight;
+    // 不自动滚动，保持当前位置
+    // container.scrollTop = container.scrollHeight;
+}
+
+// 跳转到指定时间
+function seekToTime(seconds) {
+    const audioPlayer = document.getElementById('audioPlayer');
+    if (audioPlayer && audioPlayer.src) {
+        audioPlayer.currentTime = seconds;
+        audioPlayer.play();
+        
+        // 高亮当前播放的字幕
+        highlightCurrentSubtitle(seconds);
+    }
+}
+
+// 高亮当前播放的字幕
+function highlightCurrentSubtitle(currentTime) {
+    const items = document.querySelectorAll('.subtitle-item');
+    items.forEach(item => {
+        const start = parseFloat(item.dataset.start);
+        const end = parseFloat(item.dataset.end);
+        
+        if (currentTime >= start && currentTime <= end) {
+            item.classList.add('playing');
+        } else {
+            item.classList.remove('playing');
+        }
+    });
+}
+
+// 音频播放器最小化/展开
+function toggleAudioPlayer() {
+    const audioPreview = document.getElementById('audioPreview');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    if (audioPreview.classList.contains('minimized')) {
+        audioPreview.classList.remove('minimized');
+        toggleIcon.textContent = '－';
+    } else {
+        audioPreview.classList.add('minimized');
+        toggleIcon.textContent = '＋';
+    }
+}
+
+// 监听音频播放进度
+function initAudioPlayer() {
+    const audioPlayer = document.getElementById('audioPlayer');
+    
+    if (audioPlayer) {
+        // 监听时间更新
+        audioPlayer.addEventListener('timeupdate', function() {
+            highlightCurrentSubtitle(audioPlayer.currentTime);
+        });
+        
+        // 监听播放/暂停
+        audioPlayer.addEventListener('play', function() {
+            console.log('音频开始播放');
+        });
+        
+        audioPlayer.addEventListener('pause', function() {
+            console.log('音频暂停');
+        });
+    }
 }
 
 // 格式化时间
