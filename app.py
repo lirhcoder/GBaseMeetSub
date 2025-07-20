@@ -27,10 +27,19 @@ ALLOWED_EXTENSIONS = {'mp4', 'mp3', 'wav', 'm4a', 'webm'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+@app.route('/test')
+def test():
+    """测试路由"""
+    return "Server is running! Current directory: " + os.getcwd()
+
 @app.route('/')
 def index():
     """主页"""
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        # 如果模板找不到，返回错误信息
+        return f"Error: {str(e)}<br>Current directory: {os.getcwd()}<br>Template path: {os.path.join(os.getcwd(), 'templates')}"
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
