@@ -45,6 +45,28 @@ def index():
     """主页"""
     return render_template('index.html')
 
+@app.route('/debug')
+def debug():
+    """调试信息"""
+    import glob
+    static_files = glob.glob(os.path.join(app.static_folder, '**/*'), recursive=True)
+    static_files = [os.path.relpath(f, app.static_folder).replace('\\', '/') for f in static_files if os.path.isfile(f)]
+    
+    return f"""
+    <h1>调试信息</h1>
+    <p>静态文件目录: {app.static_folder}</p>
+    <p>静态文件URL前缀: {app.static_url_path}</p>
+    <h2>找到的静态文件:</h2>
+    <ul>
+    {''.join(f'<li>{f}</li>' for f in static_files)}
+    </ul>
+    <h2>测试链接:</h2>
+    <ul>
+    <li><a href="{url_for('static', filename='css/style.css')}">CSS文件</a></li>
+    <li><a href="{url_for('static', filename='js/main.js')}">JS文件</a></li>
+    </ul>
+    """
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """处理文件上传"""
