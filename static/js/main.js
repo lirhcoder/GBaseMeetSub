@@ -188,10 +188,14 @@ function showResults(data) {
             <div class="subtitle-item" 
                  data-start="${segment.start}" 
                  data-end="${segment.end}"
-                 data-index="${index}"
-                 onclick="seekToTime(${segment.start})">
-                <div class="subtitle-time">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
-                <div class="subtitle-text">${segment.text}</div>
+                 data-index="${index}">
+                <div class="subtitle-time" onclick="seekToTime(${segment.start})">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
+                <div class="subtitle-text" 
+                     contenteditable="true"
+                     data-original-text="${segment.text}"
+                     onblur="handleSubtitleEdit(this, ${index})"
+                     onclick="event.stopPropagation()"
+                     onkeydown="handleSubtitleKeydown(event)">${segment.text}</div>
             </div>
         `).join('');
     }
@@ -254,10 +258,14 @@ function updateSubtitleDisplay(segments, append = false) {
         <div class="subtitle-item" 
              data-start="${segment.start}" 
              data-end="${segment.end}"
-             data-index="${actualIndex}"
-             onclick="seekToTime(${segment.start})">
-            <div class="subtitle-time">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
-            <div class="subtitle-text">${segment.text}</div>
+             data-index="${actualIndex}">
+            <div class="subtitle-time" onclick="seekToTime(${segment.start})">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
+            <div class="subtitle-text" 
+                 contenteditable="true"
+                 data-original-text="${segment.text}"
+                 onblur="handleSubtitleEdit(this, ${actualIndex})"
+                 onclick="event.stopPropagation()"
+                 onkeydown="handleSubtitleKeydown(event)">${segment.text}</div>
         </div>
     `;
     }).join('');
@@ -296,20 +304,7 @@ function highlightCurrentSubtitle(currentTime) {
         
         if (currentTime >= start && currentTime <= end) {
             item.classList.add('playing');
-            
-            // 如果当前字幕不在视口中，滚动到它
-            const container = item.closest('.subtitle-content');
-            if (container) {
-                const itemTop = item.offsetTop;
-                const itemBottom = itemTop + item.offsetHeight;
-                const containerTop = container.scrollTop;
-                const containerBottom = containerTop + container.clientHeight;
-                
-                if (itemTop < containerTop || itemBottom > containerBottom) {
-                    // 滚动到当前字幕的中间位置
-                    container.scrollTop = itemTop - container.clientHeight / 2 + item.offsetHeight / 2;
-                }
-            }
+            // 不自动滚动，让用户自己控制滚动位置
         } else {
             item.classList.remove('playing');
         }
@@ -317,7 +312,11 @@ function highlightCurrentSubtitle(currentTime) {
 }
 
 // 音频播放器最小化/展开
-function toggleAudioPlayer() {
+function toggleAudioPlayer(event) {
+    if (event) {
+        event.stopPropagation(); // 阻止事件冒泡
+    }
+    
     const audioPreview = document.getElementById('audioPreview');
     const toggleIcon = document.getElementById('toggleIcon');
     
@@ -327,6 +326,19 @@ function toggleAudioPlayer() {
     } else {
         audioPreview.classList.add('minimized');
         toggleIcon.textContent = '＋';
+    }
+}
+
+// 处理音频播放器的点击事件
+function handleAudioPlayerClick(event) {
+    const audioPreview = document.getElementById('audioPreview');
+    
+    // 如果是最小化状态，点击整个区域都可以展开
+    if (audioPreview.classList.contains('minimized')) {
+        // 确保不是点击了其他控件
+        if (event.target === audioPreview || event.target.tagName === 'H3') {
+            toggleAudioPlayer();
+        }
     }
 }
 
@@ -475,3 +487,194 @@ document.getElementById('submitTermBtn').addEventListener('click', async () => {
 document.getElementById('cancelTermBtn').addEventListener('click', () => {
     addTermForm.style.display = 'none';
 });
+
+// 字幕编辑功能
+let editedSubtitles = {};  // 存储编辑过的字幕
+
+function handleSubtitleEdit(element, index) {
+    const originalText = element.getAttribute('data-original-text');
+    const currentText = element.textContent.trim();
+    
+    // 如果文本没有改变，不做任何处理
+    if (originalText === currentText) {
+        return;
+    }
+    
+    // 记录编辑
+    editedSubtitles[index] = {
+        original: originalText,
+        edited: currentText,
+        timestamp: new Date().toISOString()
+    };
+    
+    // 标记已编辑
+    element.parentElement.classList.add('edited');
+    
+    // 显示保存提示
+    showEditNotification();
+}
+
+function handleSubtitleKeydown(event) {
+    // 按Enter键保存并移到下一个字幕
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.target.blur();
+        
+        // 找到下一个字幕
+        const nextItem = event.target.closest('.subtitle-item').nextElementSibling;
+        if (nextItem) {
+            const nextText = nextItem.querySelector('.subtitle-text');
+            if (nextText) {
+                nextText.focus();
+                // 选中全部文本
+                const range = document.createRange();
+                range.selectNodeContents(nextText);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    }
+    // 按Escape键取消编辑
+    else if (event.key === 'Escape') {
+        event.preventDefault();
+        const originalText = event.target.getAttribute('data-original-text');
+        event.target.textContent = originalText;
+        event.target.blur();
+    }
+}
+
+// 显示编辑提示
+function showEditNotification() {
+    // 检查是否已有提示
+    let notification = document.getElementById('editNotification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'editNotification';
+        notification.className = 'edit-notification';
+        notification.innerHTML = `
+            <p>已编辑 ${Object.keys(editedSubtitles).length} 处字幕</p>
+            <button onclick="saveEditedSubtitles()" class="save-edits-btn">保存编辑并提取术语</button>
+            <button onclick="cancelEdits()" class="cancel-edits-btn">取消</button>
+        `;
+        document.body.appendChild(notification);
+    } else {
+        notification.querySelector('p').textContent = `已编辑 ${Object.keys(editedSubtitles).length} 处字幕`;
+    }
+}
+
+// 保存编辑的字幕并提取术语
+async function saveEditedSubtitles() {
+    if (Object.keys(editedSubtitles).length === 0) {
+        return;
+    }
+    
+    // 显示确认对话框
+    const confirmDialog = document.createElement('div');
+    confirmDialog.className = 'confirm-dialog';
+    confirmDialog.innerHTML = `
+        <div class="confirm-content">
+            <h3>提取专用术语</h3>
+            <p>系统检测到以下修改，是否将其作为专用术语保存？</p>
+            <div class="term-preview">
+                ${Object.values(editedSubtitles).map(edit => `
+                    <div class="term-item">
+                        <input type="checkbox" checked value="${edit.original}|${edit.edited}">
+                        <span class="original">${edit.original}</span> → 
+                        <span class="corrected">${edit.edited}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="dialog-actions">
+                <button onclick="confirmSaveTerms()" class="confirm-btn">确认保存</button>
+                <button onclick="closeConfirmDialog()" class="cancel-btn">取消</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmDialog);
+}
+
+// 确认保存术语
+async function confirmSaveTerms() {
+    const checkboxes = document.querySelectorAll('.term-preview input[type="checkbox"]:checked');
+    const termsToSave = [];
+    
+    checkboxes.forEach(checkbox => {
+        const [original, corrected] = checkbox.value.split('|');
+        termsToSave.push({ original, corrected });
+    });
+    
+    if (termsToSave.length === 0) {
+        closeConfirmDialog();
+        return;
+    }
+    
+    // 批量保存术语
+    for (const term of termsToSave) {
+        try {
+            const response = await fetch('/add_correction', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    original: term.original,
+                    corrected: term.corrected,
+                    context: '字幕编辑'
+                })
+            });
+            
+            if (!response.ok) {
+                console.error('保存术语失败:', term);
+            }
+        } catch (error) {
+            console.error('保存术语出错:', error);
+        }
+    }
+    
+    // 清除编辑记录
+    editedSubtitles = {};
+    
+    // 移除编辑标记
+    document.querySelectorAll('.subtitle-item.edited').forEach(item => {
+        item.classList.remove('edited');
+    });
+    
+    // 关闭对话框和通知
+    closeConfirmDialog();
+    const notification = document.getElementById('editNotification');
+    if (notification) {
+        notification.remove();
+    }
+    
+    alert(`成功保存 ${termsToSave.length} 个术语！`);
+}
+
+// 关闭确认对话框
+function closeConfirmDialog() {
+    const dialog = document.querySelector('.confirm-dialog');
+    if (dialog) {
+        dialog.remove();
+    }
+}
+
+// 取消所有编辑
+function cancelEdits() {
+    // 恢复所有编辑的原始文本
+    Object.entries(editedSubtitles).forEach(([index, edit]) => {
+        const items = document.querySelectorAll(`.subtitle-item[data-index="${index}"] .subtitle-text`);
+        items.forEach(item => {
+            item.textContent = edit.original;
+            item.parentElement.classList.remove('edited');
+        });
+    });
+    
+    // 清除编辑记录
+    editedSubtitles = {};
+    
+    // 移除通知
+    const notification = document.getElementById('editNotification');
+    if (notification) {
+        notification.remove();
+    }
+}

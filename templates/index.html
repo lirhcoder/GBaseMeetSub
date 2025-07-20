@@ -159,11 +159,11 @@
     </div>
 
     <!-- 音频播放器（浮动） -->
-    <div id="audioPreview" class="audio-preview" style="display: none;">
+    <div id="audioPreview" class="audio-preview" style="display: none;" onclick="handleAudioPlayerClick(event)">
         <h3>
             音频播放器
             <div class="audio-controls">
-                <button class="audio-control-btn" onclick="toggleAudioPlayer()" title="最小化">
+                <button class="audio-control-btn" onclick="toggleAudioPlayer(event)" title="最小化">
                     <span id="toggleIcon">－</span>
                 </button>
             </div>

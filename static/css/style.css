@@ -325,19 +325,30 @@ table tr:hover {
     cursor: pointer;
 }
 
-.audio-preview.minimized audio,
-.audio-preview.minimized h3,
-.audio-preview.minimized .audio-controls {
+.audio-preview.minimized audio {
     display: none;
 }
 
-.audio-preview.minimized::after {
+.audio-preview.minimized h3 {
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.audio-preview.minimized h3 .audio-controls {
+    display: none;
+}
+
+.audio-preview.minimized::before {
     content: "🎵";
     font-size: 30px;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    pointer-events: none;
 }
 
 .audio-preview h3 {
@@ -453,4 +464,171 @@ table tr:hover {
 
 .fade-in {
     animation: fadeIn 0.5s ease forwards;
+}
+
+/* 字幕编辑样式 */
+.subtitle-text[contenteditable="true"] {
+    cursor: text;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+.subtitle-text[contenteditable="true"]:hover {
+    background-color: #f0f8ff;
+}
+
+.subtitle-text[contenteditable="true"]:focus {
+    background-color: #e3f2fd;
+    outline: 2px solid #2196f3;
+    outline-offset: -2px;
+}
+
+.subtitle-item.edited .subtitle-text {
+    background-color: #fff3e0;
+    border-left: 3px solid #ff9800;
+}
+
+/* 编辑通知 */
+.edit-notification {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 1001;
+}
+
+.edit-notification p {
+    margin: 0;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.save-edits-btn, .cancel-edits-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.save-edits-btn {
+    background-color: #4caf50;
+    color: white;
+}
+
+.save-edits-btn:hover {
+    background-color: #45a049;
+}
+
+.cancel-edits-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.cancel-edits-btn:hover {
+    background-color: #da190b;
+}
+
+/* 确认对话框 */
+.confirm-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1002;
+}
+
+.confirm-content {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.confirm-content h3 {
+    margin-top: 0;
+    color: #2c3e50;
+}
+
+.term-preview {
+    margin: 20px 0;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.term-item {
+    padding: 8px;
+    margin: 5px 0;
+    background: #f5f5f5;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.term-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.term-item .original {
+    color: #f44336;
+    text-decoration: line-through;
+}
+
+.term-item .corrected {
+    color: #4caf50;
+    font-weight: bold;
+}
+
+.dialog-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.confirm-btn, .cancel-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+.confirm-btn {
+    background-color: #3498db;
+    color: white;
+}
+
+.confirm-btn:hover {
+    background-color: #2980b9;
+}
+
+.cancel-btn {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.cancel-btn:hover {
+    background-color: #7f8c8d;
 }
