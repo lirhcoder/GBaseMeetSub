@@ -46,45 +46,11 @@ def index():
     """主页"""
     return render_template('index.html')
 
-@app.route('/debug')
-def debug():
-    """调试信息"""
-    import glob
-    static_files = glob.glob(os.path.join(app.static_folder, '**/*'), recursive=True)
-    static_files = [os.path.relpath(f, app.static_folder).replace('\\', '/') for f in static_files if os.path.isfile(f)]
-    
-    # 检查文件是否真的存在
-    css_exists = os.path.exists(os.path.join(app.static_folder, 'css/style.css'))
-    js_exists = os.path.exists(os.path.join(app.static_folder, 'js/main.js'))
-    
-    return f"""
-    <h1>调试信息</h1>
-    <p>应用根目录: {APP_ROOT}</p>
-    <p>静态文件目录: {app.static_folder}</p>
-    <p>静态文件URL前缀: {app.static_url_path}</p>
-    <p>CSS文件存在: {css_exists}</p>
-    <p>JS文件存在: {js_exists}</p>
-    <h2>找到的静态文件:</h2>
-    <ul>
-    {''.join(f'<li>{f}</li>' for f in static_files)}
-    </ul>
-    <h2>测试链接:</h2>
-    <ul>
-    <li><a href="{url_for('static', filename='css/style.css')}">CSS文件: {url_for('static', filename='css/style.css')}</a></li>
-    <li><a href="{url_for('static', filename='js/main.js')}">JS文件: {url_for('static', filename='js/main.js')}</a></li>
-    </ul>
-    <h2>直接测试:</h2>
-    <ul>
-    <li><a href="/static/css/style.css">直接访问CSS</a></li>
-    <li><a href="/static/js/main.js">直接访问JS</a></li>
-    </ul>
-    """
+@app.route('/favicon.ico')
+def favicon():
+    """返回空的favicon以避免404"""
+    return '', 204
 
-# 添加手动静态文件路由（如果自动路由失败）
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    """手动服务静态文件"""
-    return send_from_directory(app.static_folder, filename)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
