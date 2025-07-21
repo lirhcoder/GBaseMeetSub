@@ -96,6 +96,16 @@
             <p id="statusMessage" class="status-message"></p>
             <p id="chunkInfo" class="chunk-info"></p>
             
+            <!-- 控制按钮 -->
+            <div class="progress-controls">
+                <button id="pauseBtn" class="pause-btn" onclick="toggleProcessing()">
+                    <span id="pauseIcon">⏸</span> 暂停处理
+                </button>
+                <button id="cancelBtn" class="cancel-btn" onclick="cancelProcessing()">
+                    <span id="cancelIcon">⏹</span> 取消处理
+                </button>
+            </div>
+            
             
             <!-- 字幕预览 -->
             <div id="subtitlePreview" class="subtitle-preview" style="display: none;">

@@ -3,6 +3,7 @@ let selectedFile = null;
 let currentTaskId = null;
 let statusInterval = null;
 let uploadedSubtitle = null;
+let isPaused = false;
 
 // DOM元素
 const uploadArea = document.getElementById('uploadArea');
@@ -29,19 +30,19 @@ uploadArea.addEventListener('dragleave', () => {
     uploadArea.classList.remove('dragover');
 });
 
-uploadArea.addEventListener('drop', (e) => {
+uploadArea.addEventListener('drop', async (e) => {
     e.preventDefault();
     uploadArea.classList.remove('dragover');
     
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-        handleFileSelect(files[0]);
+        await handleFileSelect(files[0]);
     }
 });
 
-audioFile.addEventListener('change', (e) => {
+audioFile.addEventListener('change', async (e) => {
     if (e.target.files.length > 0) {
-        handleFileSelect(e.target.files[0]);
+        await handleFileSelect(e.target.files[0]);
     }
 });
 
@@ -430,6 +431,7 @@ function resetUI() {
     selectedFile = null;
     currentTaskId = null;
     uploadedSubtitle = null;
+    isPaused = false;
     audioFile.value = '';
     fileInfo.style.display = 'none';
     progressSection.style.display = 'none';
@@ -887,6 +889,31 @@ function displayUploadedSubtitles(segments) {
             </div>
         `).join('');
     }
+    
+    // 自动设置开始片段为最后一个字幕之后的片段
+    if (segments.length > 0) {
+        const lastSubtitleEnd = segments[segments.length - 1].end;
+        setStartChunkBasedOnTime(lastSubtitleEnd);
+    }
+}
+
+// 根据时间设置开始片段
+function setStartChunkBasedOnTime(time) {
+    const selector = document.getElementById('startChunk');
+    const options = selector.options;
+    
+    // 找到合适的片段
+    for (let i = options.length - 1; i >= 0; i--) {
+        if (parseFloat(options[i].value) <= time) {
+            // 选择下一个片段（如果存在）
+            if (i < options.length - 1) {
+                selector.selectedIndex = i + 1;
+            } else {
+                selector.selectedIndex = i;
+            }
+            break;
+        }
+    }
 }
 
 // 解析字幕文件
@@ -1005,4 +1032,65 @@ function secondsToSrtTime(seconds) {
     const ms = Math.floor((seconds % 1) * 1000);
     
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
+}
+
+// 切换处理状态（暂停/继续）
+async function toggleProcessing() {
+    if (!currentTaskId) return;
+    
+    isPaused = !isPaused;
+    const pauseBtn = document.getElementById('pauseBtn');
+    const pauseIcon = document.getElementById('pauseIcon');
+    
+    if (isPaused) {
+        // 发送暂停请求
+        try {
+            const response = await fetch(`/pause/${currentTaskId}`, { method: 'POST' });
+            if (response.ok) {
+                pauseBtn.classList.add('paused');
+                pauseIcon.textContent = '▶';
+                pauseBtn.innerHTML = '<span id="pauseIcon">▶</span> 继续处理';
+                document.getElementById('statusMessage').textContent = '处理已暂停';
+            }
+        } catch (error) {
+            console.error('暂停失败:', error);
+        }
+    } else {
+        // 发送继续请求
+        try {
+            const response = await fetch(`/resume/${currentTaskId}`, { method: 'POST' });
+            if (response.ok) {
+                pauseBtn.classList.remove('paused');
+                pauseIcon.textContent = '⏸';
+                pauseBtn.innerHTML = '<span id="pauseIcon">⏸</span> 暂停处理';
+                document.getElementById('statusMessage').textContent = '继续处理中...';
+            }
+        } catch (error) {
+            console.error('继续失败:', error);
+        }
+    }
+}
+
+// 取消处理
+async function cancelProcessing() {
+    if (!currentTaskId) return;
+    
+    if (confirm('确定要取消当前处理吗？')) {
+        try {
+            const response = await fetch(`/cancel/${currentTaskId}`, { method: 'POST' });
+            if (response.ok) {
+                // 停止状态轮询
+                if (statusInterval) {
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                }
+                
+                // 重置UI
+                alert('处理已取消');
+                resetUI();
+            }
+        } catch (error) {
+            console.error('取消失败:', error);
+        }
+    }
 }

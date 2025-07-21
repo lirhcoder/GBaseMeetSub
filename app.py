@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import time
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -152,6 +153,15 @@ def process_audio_task(task_id, filepath, model_size, subtitle_format, start_tim
                 task_update['chunk_times'] = progress_info['chunk_times']
                 
             processing_tasks[task_id].update(task_update)
+            
+            # 检查是否暂停或取消
+            while processing_tasks[task_id].get('paused', False):
+                time.sleep(1)  # 暂停时等待
+                if processing_tasks[task_id].get('cancelled', False):
+                    raise Exception('处理已取消')
+            
+            if processing_tasks[task_id].get('cancelled', False):
+                raise Exception('处理已取消')
         
         # 创建增强处理管道
         pipeline = EnhancedPipeline({
@@ -343,6 +353,36 @@ def analyze_audio():
                 os.unlink(tmp_file.name)
     
     return jsonify({'error': '不支持的文件格式'}), 400
+
+@app.route('/pause/<task_id>', methods=['POST'])
+def pause_task(task_id):
+    """暂停处理任务"""
+    if task_id not in processing_tasks:
+        return jsonify({'error': '任务不存在'}), 404
+    
+    processing_tasks[task_id]['paused'] = True
+    processing_tasks[task_id]['status'] = 'paused'
+    return jsonify({'message': '任务已暂停'})
+
+@app.route('/resume/<task_id>', methods=['POST'])
+def resume_task(task_id):
+    """继续处理任务"""
+    if task_id not in processing_tasks:
+        return jsonify({'error': '任务不存在'}), 404
+    
+    processing_tasks[task_id]['paused'] = False
+    processing_tasks[task_id]['status'] = 'processing'
+    return jsonify({'message': '任务已继续'})
+
+@app.route('/cancel/<task_id>', methods=['POST'])
+def cancel_task(task_id):
+    """取消处理任务"""
+    if task_id not in processing_tasks:
+        return jsonify({'error': '任务不存在'}), 404
+    
+    processing_tasks[task_id]['cancelled'] = True
+    processing_tasks[task_id]['status'] = 'cancelled'
+    return jsonify({'message': '任务已取消'})
 
 @app.route('/clear_uploads', methods=['POST'])
 def clear_uploads():
