@@ -71,7 +71,9 @@ processBtn.addEventListener('click', async () => {
     
     // 如果有上传的字幕，也添加到表单
     if (uploadedSubtitle) {
-        formData.append('existing_subtitle', uploadedSubtitle);
+        // 创建一个Blob对象来传递字幕内容
+        const subtitleBlob = new Blob([uploadedSubtitle], { type: 'text/plain' });
+        formData.append('existing_subtitle', subtitleBlob, 'subtitle.srt');
     }
     
     processBtn.disabled = true;
@@ -381,6 +383,7 @@ function formatTime(seconds) {
 function resetUI() {
     selectedFile = null;
     currentTaskId = null;
+    uploadedSubtitle = null;
     audioFile.value = '';
     fileInfo.style.display = 'none';
     progressSection.style.display = 'none';
@@ -398,6 +401,11 @@ function resetUI() {
     
     // 重置字幕计数器
     lastSegmentCount = 0;
+    
+    // 重置高级选项
+    document.getElementById('subtitleFile').value = '';
+    document.getElementById('uploadedSubtitleInfo').style.display = 'none';
+    document.getElementById('startTime').value = '0';
     
     if (statusInterval) {
         clearInterval(statusInterval);

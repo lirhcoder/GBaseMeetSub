@@ -92,8 +92,18 @@ class EnhancedPipeline:
             
             # 如果有已存在的字幕，先加载它们
             if self.existing_subtitle:
-                # TODO: 解析已有字幕并添加到all_segments
-                logger.info("检测到已有字幕，将在此基础上继续处理")
+                existing_segments = self._parse_existing_subtitle(self.existing_subtitle)
+                if existing_segments:
+                    # 加载所有已有字幕
+                    all_segments.extend(existing_segments)
+                    logger.info(f"从已有字幕中加载了 {len(existing_segments)} 条记录")
+                    
+                    # 更新进度信息，让前端知道已有字幕
+                    self.progress_info['partial_results'] = all_segments
+                    self._update_progress(10, f'已加载 {len(existing_segments)} 条已有字幕', progress_callback)
+                    
+                    # 如果开始时间为0且有字幕，可以选择跳过音频处理
+                    # （这里继续处理音频以便可以纠正或补充）
             
             # 根据开始时间过滤片段
             filtered_chunks = []
@@ -103,6 +113,9 @@ class EnhancedPipeline:
             
             if len(filtered_chunks) < len(chunks):
                 logger.info(f"根据开始时间 {self.start_time}秒，跳过了 {len(chunks) - len(filtered_chunks)} 个片段")
+            
+            # 更新总片段数为过滤后的数量
+            self.progress_info['total_chunks'] = len(filtered_chunks)
             
             # 优先批次的大小
             priority_batch_size = 5
@@ -253,3 +266,44 @@ class EnhancedPipeline:
             hours = int(seconds // 3600)
             minutes = int((seconds % 3600) // 60)
             return f"{hours}小时{minutes}分"
+    
+    def _parse_existing_subtitle(self, subtitle_content: str) -> List[Dict]:
+        """解析已有的字幕文件"""
+        segments = []
+        
+        # 尝试解析SRT格式
+        if '00:00:00,' in subtitle_content or '-->' in subtitle_content:
+            blocks = subtitle_content.strip().split('\n\n')
+            for block in blocks:
+                lines = block.strip().split('\n')
+                if len(lines) >= 3:
+                    # 查找时间行
+                    time_line = None
+                    for i, line in enumerate(lines):
+                        if '-->' in line:
+                            time_line = i
+                            break
+                    
+                    if time_line is not None:
+                        import re
+                        time_match = re.match(r'(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})', lines[time_line])
+                        if time_match:
+                            start = self._srt_time_to_seconds(time_match.group(1))
+                            end = self._srt_time_to_seconds(time_match.group(2))
+                            text = ' '.join(lines[time_line + 1:])
+                            segments.append({
+                                'start': start,
+                                'end': end,
+                                'text': text.strip()
+                            })
+        
+        return segments
+    
+    def _srt_time_to_seconds(self, time_str: str) -> float:
+        """SRT时间格式转换为秒"""
+        import re
+        match = re.match(r'(\d{2}):(\d{2}):(\d{2}),(\d{3})', time_str)
+        if match:
+            h, m, s, ms = match.groups()
+            return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
+        return 0
