@@ -799,11 +799,46 @@ function handleSubtitleUpload(event) {
         if (file.name.endsWith('.srt') || file.name.endsWith('.vtt')) {
             const segments = parseSubtitle(e.target.result, file.name.endsWith('.srt') ? 'srt' : 'vtt');
             if (segments.length > 0) {
+                // 立即在结果区域显示上传的字幕
+                displayUploadedSubtitles(segments);
                 alert(`成功加载 ${segments.length} 条字幕`);
             }
         }
     };
     reader.readAsText(file);
+}
+
+// 显示上传的字幕
+function displayUploadedSubtitles(segments) {
+    // 显示字幕预览区域
+    document.getElementById('subtitlePreview').style.display = 'block';
+    document.getElementById('subtitleContent').innerHTML = '';
+    
+    // 重置计数器
+    lastSegmentCount = segments.length;
+    
+    // 显示所有上传的字幕
+    updateSubtitleDisplay(segments, false);
+    
+    // 如果有结果区域，也更新那里
+    const resultSection = document.getElementById('resultSection');
+    if (resultSection.style.display !== 'none') {
+        const resultSubtitleContent = document.getElementById('resultSubtitleContent');
+        resultSubtitleContent.innerHTML = segments.map((segment, index) => `
+            <div class="subtitle-item" 
+                 data-start="${segment.start}" 
+                 data-end="${segment.end}"
+                 data-index="${index}">
+                <div class="subtitle-time" onclick="seekToTime(${segment.start})">${formatTime(segment.start)} - ${formatTime(segment.end)}</div>
+                <div class="subtitle-text" 
+                     contenteditable="true"
+                     data-original-text="${segment.text}"
+                     onblur="handleSubtitleEdit(this, ${index})"
+                     onclick="event.stopPropagation()"
+                     onkeydown="handleSubtitleKeydown(event)">${segment.text}</div>
+            </div>
+        `).join('');
+    }
 }
 
 // 解析字幕文件

@@ -91,19 +91,21 @@ class EnhancedPipeline:
             all_corrections = []
             
             # 如果有已存在的字幕，先加载它们
+            existing_segments = []
             if self.existing_subtitle:
                 existing_segments = self._parse_existing_subtitle(self.existing_subtitle)
                 if existing_segments:
-                    # 加载所有已有字幕
-                    all_segments.extend(existing_segments)
                     logger.info(f"从已有字幕中加载了 {len(existing_segments)} 条记录")
                     
-                    # 更新进度信息，让前端知道已有字幕
-                    self.progress_info['partial_results'] = all_segments
-                    self._update_progress(10, f'已加载 {len(existing_segments)} 条已有字幕', progress_callback)
+                    # 先添加开始时间之前的已有字幕
+                    for seg in existing_segments:
+                        if seg['end'] <= self.start_time:
+                            all_segments.append(seg)
                     
-                    # 如果开始时间为0且有字幕，可以选择跳过音频处理
-                    # （这里继续处理音频以便可以纠正或补充）
+                    # 更新进度信息，让前端知道已有字幕
+                    if all_segments:
+                        self.progress_info['partial_results'] = all_segments
+                        self._update_progress(10, f'已加载 {len(all_segments)} 条已有字幕（开始时间之前）', progress_callback)
             
             # 根据开始时间过滤片段
             filtered_chunks = []
@@ -188,18 +190,47 @@ class EnhancedPipeline:
                     'processing_time': chunk_time
                 })
                 
-                # 保存部分结果供预览
-                self.progress_info['partial_results'] = all_segments
+                # 保存部分结果供预览（包含已有字幕和新识别的内容，按时间排序）
+                combined_segments = all_segments.copy()
+                # 添加尚未处理的已有字幕
+                if existing_segments:
+                    for seg in existing_segments:
+                        if seg['start'] > chunk['end_time']:
+                            combined_segments.append(seg)
+                
+                # 按时间排序
+                combined_segments.sort(key=lambda x: x['start'])
+                self.progress_info['partial_results'] = combined_segments
                 
                 # 更新进度，显示该片段处理时间
-                chunk_progress = 10 + (80 * (i + 1) // len(chunks))
+                chunk_progress = 10 + (80 * (i + 1) // total_filtered)
                 self._update_progress(
                     chunk_progress,
-                    f'完成片段 {i+1}/{len(chunks)} (用时: {self._format_time(chunk_time)})',
+                    f'完成片段 {i+1}/{total_filtered} (用时: {self._format_time(chunk_time)})',
                     progress_callback
                 )
             
-            # 3. 生成字幕文件
+            # 3. 合并剩余的已有字幕（开始时间之后的部分）
+            if existing_segments:
+                for seg in existing_segments:
+                    if seg['start'] >= self.start_time:
+                        # 检查是否与新识别的字幕重叠
+                        overlap = False
+                        for new_seg in all_segments:
+                            if (seg['start'] >= new_seg['start'] and seg['start'] < new_seg['end']) or \
+                               (seg['end'] > new_seg['start'] and seg['end'] <= new_seg['end']):
+                                overlap = True
+                                break
+                        
+                        # 如果没有重叠，添加这个已有字幕
+                        if not overlap:
+                            all_segments.append(seg)
+                
+                # 按时间排序所有字幕
+                all_segments.sort(key=lambda x: x['start'])
+                logger.info(f"合并后共有 {len(all_segments)} 条字幕")
+            
+            # 4. 生成字幕文件
             self._update_progress(90, '生成字幕文件...', progress_callback)
             
             base_name = os.path.splitext(os.path.basename(audio_path))[0]
@@ -212,12 +243,12 @@ class EnhancedPipeline:
             else:
                 self.subtitle_gen.generate_txt(all_segments, subtitle_path)
             
-            # 4. 清理临时文件
+            # 5. 清理临时文件
             self._update_progress(95, '清理临时文件...', progress_callback)
             import shutil
             shutil.rmtree(temp_dir, ignore_errors=True)
             
-            # 5. 完成
+            # 6. 完成
             processing_time = time.time() - start_time
             self._update_progress(100, '处理完成！', progress_callback)
             
