@@ -297,6 +297,53 @@ def preview_subtitles(task_id):
     
     return jsonify(preview_data)
 
+@app.route('/analyze_audio', methods=['POST'])
+def analyze_audio():
+    """分析音频文件，返回分片信息"""
+    if 'audio' not in request.files:
+        return jsonify({'error': '没有上传文件'}), 400
+    
+    file = request.files['audio']
+    if file.filename == '':
+        return jsonify({'error': '没有选择文件'}), 400
+    
+    if file and allowed_file(file.filename):
+        # 临时保存文件
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp_file:
+            file.save(tmp_file.name)
+            
+            try:
+                # 获取音频时长
+                from src.audio_splitter import AudioSplitter
+                splitter = AudioSplitter(30)  # 30秒分片
+                duration = splitter.get_audio_duration(tmp_file.name)
+                
+                # 计算分片
+                chunks = []
+                chunk_duration = 30
+                for i in range(0, int(duration), chunk_duration):
+                    start = i
+                    end = min(i + chunk_duration, duration)
+                    chunks.append({
+                        'index': len(chunks),
+                        'start': start,
+                        'end': end,
+                        'label': f'{start}秒 - {end}秒 (片段{len(chunks)+1})'
+                    })
+                
+                return jsonify({
+                    'duration': duration,
+                    'chunks': chunks,
+                    'chunk_duration': chunk_duration
+                })
+                
+            finally:
+                # 清理临时文件
+                os.unlink(tmp_file.name)
+    
+    return jsonify({'error': '不支持的文件格式'}), 400
+
 @app.route('/clear_uploads', methods=['POST'])
 def clear_uploads():
     """清理上传的文件（开发用）"""

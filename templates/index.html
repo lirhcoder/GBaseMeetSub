@@ -69,9 +69,12 @@
                     </div>
                     
                     <div class="option-group">
-                        <h4>从指定时间开始</h4>
-                        <p class="option-desc">设置开始识别的时间点（秒）</p>
-                        <input type="number" id="startTime" min="0" step="1" placeholder="0" value="0">
+                        <h4>从指定片段开始</h4>
+                        <p class="option-desc">选择从哪个音频片段开始处理</p>
+                        <select id="startChunk" disabled>
+                            <option value="0">请先上传音频文件</option>
+                        </select>
+                        <p id="chunkInfo" class="chunk-info-text" style="display: none;"></p>
                     </div>
                 </div>
             </details>

@@ -703,12 +703,20 @@ table tr:hover {
 }
 
 .option-group input[type="file"],
-.option-group input[type="number"] {
+.option-group input[type="number"],
+.option-group select {
     width: 100%;
     padding: 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
+}
+
+.chunk-info-text {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #3498db;
+    font-style: italic;
 }
 
 /* 下载编辑后字幕按钮 */

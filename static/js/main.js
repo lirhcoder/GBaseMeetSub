@@ -45,7 +45,7 @@ audioFile.addEventListener('change', (e) => {
     }
 });
 
-function handleFileSelect(file) {
+async function handleFileSelect(file) {
     const allowedTypes = ['audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/x-m4a', 'video/mp4', 'video/webm'];
     
     if (!allowedTypes.includes(file.type) && !file.name.match(/\.(mp4|mp3|wav|m4a|webm)$/i)) {
@@ -57,6 +57,52 @@ function handleFileSelect(file) {
     fileName.textContent = file.name;
     fileInfo.style.display = 'block';
     processBtn.disabled = false;
+    
+    // 分析音频文件获取分片信息
+    analyzeAudioFile(file);
+}
+
+// 分析音频文件，获取分片信息
+async function analyzeAudioFile(file) {
+    const formData = new FormData();
+    formData.append('audio', file);
+    
+    try {
+        const response = await fetch('/analyze_audio', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            updateChunkSelector(data.chunks);
+            
+            // 显示音频总时长信息
+            const minutes = Math.floor(data.duration / 60);
+            const seconds = Math.floor(data.duration % 60);
+            document.getElementById('chunkInfo').textContent = 
+                `音频总时长: ${minutes}分${seconds}秒，共${data.chunks.length}个片段`;
+            document.getElementById('chunkInfo').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('分析音频失败:', error);
+    }
+}
+
+// 更新分片选择器
+function updateChunkSelector(chunks) {
+    const selector = document.getElementById('startChunk');
+    selector.disabled = false;
+    selector.innerHTML = '<option value="0">从头开始处理</option>';
+    
+    chunks.forEach((chunk, index) => {
+        if (index > 0) {  // 跳过第一个片段，因为"从头开始"已经包含了
+            const option = document.createElement('option');
+            option.value = chunk.start;
+            option.textContent = chunk.label;
+            selector.appendChild(option);
+        }
+    });
 }
 
 // 处理按钮
@@ -67,7 +113,7 @@ processBtn.addEventListener('click', async () => {
     formData.append('audio', selectedFile);
     formData.append('model_size', document.getElementById('modelSize').value);
     formData.append('subtitle_format', document.getElementById('subtitleFormat').value);
-    formData.append('start_time', document.getElementById('startTime').value || '0');
+    formData.append('start_time', document.getElementById('startChunk').value || '0');
     
     // 如果有上传的字幕，也添加到表单
     if (uploadedSubtitle) {
@@ -405,7 +451,9 @@ function resetUI() {
     // 重置高级选项
     document.getElementById('subtitleFile').value = '';
     document.getElementById('uploadedSubtitleInfo').style.display = 'none';
-    document.getElementById('startTime').value = '0';
+    document.getElementById('startChunk').innerHTML = '<option value="0">请先上传音频文件</option>';
+    document.getElementById('startChunk').disabled = true;
+    document.getElementById('chunkInfo').style.display = 'none';
     
     if (statusInterval) {
         clearInterval(statusInterval);

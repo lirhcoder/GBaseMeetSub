@@ -144,7 +144,7 @@ class EnhancedPipeline:
                 # 显示处理时间信息
                 elapsed_time = time.time() - start_time
                 avg_chunk_time = elapsed_time / (i + 1) if i > 0 else 0
-                estimated_total = avg_chunk_time * len(chunks)
+                estimated_total = avg_chunk_time * total_filtered
                 remaining_time = estimated_total - elapsed_time
                 
                 time_message = f'已用: {self._format_time(elapsed_time)}, 剩余: {self._format_time(remaining_time)}'
